@@ -42,8 +42,11 @@ def signup(user_info: dict):
 
 
 @app.post("/users/login")
-def login():
-    pass
+def login(id: str, password: str):
+    user = get_user(db_engine, id)
+    if user:
+        return verify_password(password, user.salt, user.password_hash)
+    return False
 
 
 @app.post("/users/refresh")

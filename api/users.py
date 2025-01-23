@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Sequence, \
-    insert
+    insert, select
 from sqlalchemy_utils import database_exists, create_database
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -28,8 +28,16 @@ def create_tables(engine):
     Base.metadata.create_all(engine)
 
 
-def insert_user(engine, id, email, password_hash, created_at):
-    insert_stmt = insert(Users).values(id=id, email=email, password_hash=password_hash, created_at=created_at)
+def insert_user(engine, id, email, salt, password_hash, created_at):
+    stmt = insert(Users).values(id=id, email=email,
+                                salt=salt, password_hash=password_hash,
+                                created_at=created_at)
     with engine.connect() as connection:
-        connection.execute(insert_stmt)
+        connection.execute(stmt)
         connection.commit()
+
+def get_user(engine, id):
+    stmt = select(Users).where(Users.id == id)
+    with engine.connect() as connection:
+        result = connection.execute(stmt)
+        return result.fetchone()

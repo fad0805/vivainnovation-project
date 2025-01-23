@@ -11,6 +11,7 @@ class Users(Base):
     primary_key = Column(Integer, Sequence('users_primary_key'), primary_key=True)
     id = Column(String(36), unique=True)
     email = Column(String(255), unique=True)
+    salt = Column(String(255))
     password_hash = Column(String(255))
     created_at = Column(DateTime)
     refesh_token = Column(String(255), default=None)

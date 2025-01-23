@@ -1,13 +1,21 @@
 from fastapi import FastAPI
-from users import create_db
+from users import create_db, create_tables, insert_user
 
 app = FastAPI()
 db_engine = create_db('root', '', 'mysql', 'users')
+create_tables(db_engine)
+
 
 # users
 @app.post("/users/signup")
-def signup():
-    pass
+def signup(user_info: dict):
+    id, email, password_hash, created_at = user_info.values()
+    try:
+        insert_user(db_engine, id, email, password_hash, created_at)
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 @app.post("/users/login")

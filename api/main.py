@@ -37,16 +37,21 @@ def signup(user_info: dict):
         insert_user(db_engine, id, email, salt, password_hash, created_at)
         return True
     except Exception as e:
-        print(e)
-        return False
-
+        raise Exception(f"Failed to create user: {e}")
 
 @app.post("/users/login")
 def login(id: str, password: str):
-    user = get_user(db_engine, id)
-    if user:
-        return verify_password(password, user.salt, user.password_hash)
-    return False
+    try:
+        user = get_user(db_engine, id)
+        if user:
+            if verify_password(password, user.salt, user.password_hash):
+                # make refrash token
+                # return access_token
+                return True
+        else:
+            return False
+    except Exception as e:
+        raise Exception(f"Failed to login: {e}")
 
 
 @app.post("/users/refresh")

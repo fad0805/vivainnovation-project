@@ -1,23 +1,11 @@
 from fastapi import FastAPI
+
 from users import create_db, create_tables, insert_user, get_user
-import hashlib
-import secrets
+from hashing import generate_password_hash, hash_password, verify_password
 
 app = FastAPI()
 db_engine = create_db('root', '', 'mysql', 'users')
 create_tables(db_engine)
-
-
-# hashing password
-def generate_password_hash():
-    return secrets.token_urlsafe(16)
-
-def hash_password(password: str, salt: str):
-    combined = password + salt
-    return hashlib.sha256(combined.encode()).hexdigest()
-
-def verify_password(password: str, salt: str, password_hash: str):
-    return hash_password(password, salt) == password_hash
 
 
 # health check
@@ -47,6 +35,7 @@ def login(id: str, password: str):
             if verify_password(password, user.salt, user.password_hash):
                 # make refrash token
                 # return access_token
+
                 return True
         else:
             return False

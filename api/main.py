@@ -1,6 +1,8 @@
 from fastapi import FastAPI
+from users import create_db
 
 app = FastAPI()
+db_engine = create_db('root', '', 'mysql', 'users')
 
 # users
 @app.post("/users/signup")

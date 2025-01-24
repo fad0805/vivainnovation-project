@@ -96,8 +96,13 @@ def token_refresh(refresh_token: str = Cookie(None)):
 
 
 @app.post("/users/logout")
-def logout():
-    pass
+def logout(response: Response):
+    try:
+        update_user(db_engine, id, None)
+        response.delete_cookie(key="refresh_token")
+        return {"status": "ok"}
+    except Exception as e:
+        raise Exception(f"Failed to logout: {e}")
 
 
 # posts

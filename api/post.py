@@ -18,8 +18,8 @@ def insert_post(collection: MongoClient, post: dict):
     return post_id
 
 
-def select_post(collection: MongoClient, post_id: str):
-    post = collection.find_one({"_id": post_id})
+def select_post(collection: MongoClient, post_id: int):
+    post = collection.find_one({"id": post_id})
     return post
 
 
@@ -30,11 +30,11 @@ def select_all_posts(collection: MongoClient, page: int, page_size: int, author_
     return all_posts.to_list()
 
 
-def update_post(collection: MongoClient, post_id: str, post: dict):
+def update_post(collection: MongoClient, post_id: int, post: dict):
     updated_post = collection.update_one({"_id": post_id}, {"$set": post})
     return updated_post
 
 
-def delete_post(collection: MongoClient, post_id: str):
-    deleted_post = collection.delete_one({"_id": post_id})
+def delete_post(collection: MongoClient, post_id: int):
+    deleted_post = collection.delete_one({"id": post_id})
     return deleted_post

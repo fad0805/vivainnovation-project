@@ -155,5 +155,22 @@ def update_post(post_id: int):
 
 
 @app.delete("/posts/{post_id}")
-def delete_post(post_id: int):
-    pass
+def to_delete_post(post_id: int, request: Request):
+    try:
+        access_token = request.headers.get("Authorization")
+        if access_token is None:
+            raise Exception(f"Failed to delete post: Unauthorized")
+
+        current_user = decode_token(access_token.split(" ")[1])
+        post_info = select_post(mongo_collection, post_id)
+
+        if not current_user:
+            raise Exception(f"Failed to delete post: Invalid user")
+        if current_user.user_id != post_info["author_id"]:
+            raise Exception(f"Failed to delete post: Invalid user")
+
+        post_id = delete_post(mongo_collection, post_id)
+        print(post_id)
+        return {"status": "ok"}
+    except Exception as e:
+        raise Exception(f"Failed to delete post: {e}")

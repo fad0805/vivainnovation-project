@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Sequence, \
     insert, select, update
 from sqlalchemy_utils import database_exists, create_database
@@ -26,6 +28,15 @@ def create_db(user, password, host, db_name):
 
 def create_tables(engine):
     Base.metadata.create_all(engine)
+
+
+def mysql_init():
+    mysql_user = os.getenv("MYSQL_USER")
+    mysql_password = os.getenv("MYSQL_PASSWORD")
+    mysql_db = os.getenv("MYSQL_DATABASE")
+    db_engine = create_db(mysql_user, mysql_password, 'mysql', mysql_db)
+    create_tables(db_engine)
+    return db_engine
 
 
 def insert_user(engine, id, email, salt, password_hash, created_at):

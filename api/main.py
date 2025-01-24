@@ -1,16 +1,16 @@
-import os
-
 from fastapi import FastAPI, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from jwt_handler import create_token, decode_token
 from hashing import generate_password_hash, hash_password, verify_password
-from user import create_db, create_tables, insert_user, select_user, update_user
-
+from post import mongo_init
+from user import mysql_init, insert_user, select_user, update_user
 
 origins = [
     "http://localhost",
 ]
+ACCESS_TOKEN_EXPIRE = 60 * 30  # 30 minutes
+REFRESH_TOKEN_EXPIRE = 60 * 60 * 24 * 7  # 7 days
 
 app = FastAPI()
 app.add_middleware(
@@ -21,15 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-mysql_user = os.getenv("MYSQL_USER")
-mysql_password = os.getenv("MYSQL_PASSWORD")
-mysql_db = os.getenv("MYSQL_DATABASE")
-db_engine = create_db(mysql_user, mysql_password, 'mysql', mysql_db)
-create_tables(db_engine)
-
-ACCESS_TOKEN_EXPIRE = 60 * 30  # 30 minutes
-REFRESH_TOKEN_EXPIRE = 60 * 60 * 24 * 7  # 7 days
-
+# db connection
+mysql_engine = mysql_init()
+mongo_client = mongo_init()
+print(mongo_client)
 
 # authenticate user
 def authenticate_user(engine, id: str, password: str):
@@ -55,7 +50,7 @@ def signup(user_info: dict):
     password_hash = hash_password(password, salt)
 
     try:
-        insert_user(db_engine, id, email, salt, password_hash, created_at)
+        insert_user(mysql_engine, id, email, salt, password_hash, created_at)
         return {"status": "ok"}
     except Exception as e:
         raise Exception(f"Failed to create user: {e}")
@@ -64,7 +59,7 @@ def signup(user_info: dict):
 @app.post("/users/login")
 def login(id: str, password: str, response: Response):
     try:
-        user = authenticate_user(db_engine, id, password)
+        user = authenticate_user(mysql_engine, id, password)
         if not user:
             raise Exception(f"Failed to login: Invalid credentials")
 
@@ -75,7 +70,7 @@ def login(id: str, password: str, response: Response):
 
         response.set_cookie(key="refresh_token", value=refresh_token.token, httponly=True)
 
-        update_user(db_engine, id, refresh_token.token)
+        update_user(mysql_engine, id, refresh_token.token)
         return access_token
     except Exception as e:
         raise Exception(f"Failed to login: {e}")
@@ -88,7 +83,7 @@ def token_refresh(refresh_token: str = Cookie(None)):
         if not current_user:
             raise Exception(f"Failed to refresh token: Invalid user")
 
-        user = select_user(db_engine, current_user.user_id)
+        user = select_user(mysql_engine, current_user.user_id)
         if not user:
             raise Exception(f"Failed to refresh token: User not found")
         if user.refresh_token != refresh_token:
@@ -104,7 +99,7 @@ def token_refresh(refresh_token: str = Cookie(None)):
 @app.post("/users/logout")
 def logout(response: Response):
     try:
-        update_user(db_engine, id, None)
+        update_user(mysql_engine, id, None)
         response.delete_cookie(key="refresh_token")
         return {"status": "ok"}
     except Exception as e:

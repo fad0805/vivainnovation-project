@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Cookie, Response
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, Cookie, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from jwt_handler import create_token, decode_token
 from hashing import generate_password_hash, hash_password, verify_password
-from post import mongo_init
+from post import mongo_init, insert_post, select_post, select_all_posts, update_post, delete_post
 from user import mysql_init, insert_user, select_user, update_user
 
 origins = [
@@ -23,8 +25,7 @@ app.add_middleware(
 
 # db connection
 mysql_engine = mysql_init()
-mongo_client = mongo_init()
-print(mongo_client)
+mongo_collection = mongo_init()
 
 # authenticate user
 def authenticate_user(engine, id: str, password: str):
@@ -108,8 +109,30 @@ def logout(response: Response):
 
 # posts
 @app.post("/posts")
-def create_post():
-    pass
+async def create_post(request: Request):
+    try:
+        access_token = request.headers.get("Authorization")
+        post_info = await request.json()
+        if access_token is None:
+            raise Exception(f"Failed to create post: Unauthorized")
+
+        current_user = decode_token(access_token.split(" ")[1])
+        now = datetime.now(timezone.utc)
+
+        if not current_user:
+            raise Exception(f"Failed to create post: Invalid user")
+        if current_user.user_id != post_info["author_id"]:
+            raise Exception(f"Failed to create post: Invalid user")
+        if not select_user(mysql_engine, current_user.user_id):
+            raise Exception(f"Failed to create post: User not found")
+        if current_user.exp.replace(tzinfo=timezone.utc) < now:
+            raise Exception(f"Failed to create post: Token expired")
+
+        post_id = insert_post(mongo_collection, post_info)
+        return {"post_id": str(post_id), "status": "ok"}
+    except Exception as e:
+        raise Exception(f"Failed to create post: {e}")
+
 
 
 @app.get("/posts/{post_id}")

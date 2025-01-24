@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,7 +20,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-db_engine = create_db('root', '', 'mysql', 'users')
+
+mysql_user = os.getenv("MYSQL_USER")
+mysql_password = os.getenv("MYSQL_PASSWORD")
+mysql_db = os.getenv("MYSQL_DATABASE")
+db_engine = create_db(mysql_user, mysql_password, 'mysql', mysql_db)
 create_tables(db_engine)
 
 ACCESS_TOKEN_EXPIRE = 60 * 30  # 30 minutes

@@ -141,8 +141,12 @@ def get_post(post_id: int):
 
 
 @app.get("/posts")
-def get_posts():
-    pass
+def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):
+    try:
+        posts = select_all_posts(mongo_collection, page, page_size, author_id)
+        return posts
+    except Exception as e:
+        raise Exception(f"Failed to get posts: {e}")
 
 
 @app.put("/posts/{post_id}")

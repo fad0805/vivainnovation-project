@@ -13,6 +13,7 @@ def mongo_init():
 
 
 def insert_post(collection: MongoClient, post: dict):
+    post["id"] = collection.count_documents({}) + 1
     post_id = collection.insert_one(post).inserted_id
     return post_id
 
@@ -22,9 +23,19 @@ def select_post(collection: MongoClient, post_id: str):
     return post
 
 
-def select_all_posts(collection: MongoClient):
-    all_collection = collection.find()
-    return all_collection
+def select_all_posts(collection: MongoClient, page: int, page_size: int, author: str):
+    by_author = None
+    if author:
+        by_author = collection.find({"author": author}).sort("_id", -1)
+
+    if by_author:
+        all_posts = by_author.find({}, {"_id": 0})\
+            .sort("_id", -1).skip((page - 1) * page_size).limit(page_size)
+    else:
+        all_posts = collection.find({}, {"_id": 0})\
+            .sort("_id", -1).skip((page - 1) * page_size).limit(page_size)
+
+    return all_posts.to_list()
 
 
 def update_post(collection: MongoClient, post_id: str, post: dict):

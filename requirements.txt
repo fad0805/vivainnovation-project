@@ -1,5 +1,8 @@
 fastapi
-uvicorn[standard]
+jose
+pymysql
+pydantic
+python-jose
 sqlalchemy
 sqlalchemy-utils
-pymysql
+uvicorn[standard]

@@ -23,18 +23,9 @@ def select_post(collection: MongoClient, post_id: str):
     return post
 
 
-def select_all_posts(collection: MongoClient, page: int, page_size: int, author: str):
-    by_author = None
-    if author:
-        by_author = collection.find({"author": author}).sort("_id", -1)
-
-    if by_author:
-        all_posts = by_author.find({}, {"_id": 0})\
-            .sort("_id", -1).skip((page - 1) * page_size).limit(page_size)
-    else:
-        all_posts = collection.find({}, {"_id": 0})\
-            .sort("_id", -1).skip((page - 1) * page_size).limit(page_size)
-
+def select_all_posts(collection: MongoClient, page: int, page_size: int, author_id: str):
+    all_posts = collection.find({} if not author_id else {"author_id": author_id}, {"_id": 0})\
+        .sort("_id", -1).skip((page - 1) * page_size).limit(page_size)
     return all_posts.to_list()
 
 

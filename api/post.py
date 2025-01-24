@@ -31,7 +31,7 @@ def select_all_posts(collection: MongoClient, page: int, page_size: int, author_
 
 
 def update_post(collection: MongoClient, post_id: int, post: dict):
-    updated_post = collection.update_one({"_id": post_id}, {"$set": post})
+    updated_post = collection.update_one({"id": post_id}, {"$set": post})
     return updated_post
 
 

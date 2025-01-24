@@ -137,7 +137,11 @@ async def create_post(request: Request):
 
 @app.get("/posts/{post_id}")
 def get_post(post_id: int):
-    pass
+    try:
+        post = select_post(mongo_collection, post_id)
+        return post
+    except Exception as e:
+        raise Exception(f"Failed to get post: {e}")
 
 
 @app.get("/posts")
@@ -150,8 +154,27 @@ def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):
 
 
 @app.put("/posts/{post_id}")
-def update_post(post_id: int):
-    pass
+def to_update_post(post_id: int, post: dict, request: Request):
+    try:
+        access_token = request.headers.get("Authorization")
+        if access_token is None:
+            raise Exception(f"Failed to delete post: Unauthorized")
+
+        current_user = decode_token(access_token.split(" ")[1])
+        now = datetime.now(timezone.utc)
+        post_info = select_post(mongo_collection, post_id)
+
+        if not current_user:
+            raise Exception(f"Failed to delete post: Invalid user")
+        if current_user.user_id != post_info["author_id"]:
+            raise Exception(f"Failed to delete post: Invalid user")
+        if current_user.exp.replace(tzinfo=timezone.utc) < now:
+            raise Exception(f"Failed to create post: Token expired")
+
+        update_post(mongo_collection, post_id, post)
+        return {"status": "ok"}
+    except Exception as e:
+        raise Exception(f"Failed to delete post: {e}")
 
 
 @app.delete("/posts/{post_id}")
@@ -162,15 +185,17 @@ def to_delete_post(post_id: int, request: Request):
             raise Exception(f"Failed to delete post: Unauthorized")
 
         current_user = decode_token(access_token.split(" ")[1])
+        now = datetime.now(timezone.utc)
         post_info = select_post(mongo_collection, post_id)
 
         if not current_user:
             raise Exception(f"Failed to delete post: Invalid user")
         if current_user.user_id != post_info["author_id"]:
             raise Exception(f"Failed to delete post: Invalid user")
+        if current_user.exp.replace(tzinfo=timezone.utc) < now:
+            raise Exception(f"Failed to create post: Token expired")
 
-        post_id = delete_post(mongo_collection, post_id)
-        print(post_id)
+        delete_post(mongo_collection, post_id)
         return {"status": "ok"}
     except Exception as e:
         raise Exception(f"Failed to delete post: {e}")

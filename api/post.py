@@ -13,7 +13,10 @@ def mongo_init():
 
 
 def insert_post(collection: MongoClient, post: dict):
-    post["id"] = collection.count_documents({}) + 1
+    last_post = collection.find_one(sort=[("_id", -1)])
+    post["id"] = 1
+    if last_post:
+        post["id"] = last_post["id"] + 1
     post_id = collection.insert_one(post).inserted_id
     return post_id
 

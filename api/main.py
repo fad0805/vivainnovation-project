@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Cookie, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -142,6 +143,11 @@ async def create_post(request: Request):
         if access_token is None:
             raise HTTPException(status_code=401, detail="Unauthorized")
 
+        if not post_info.get("title") \
+            or not post_info.get("content") \
+            or not post_info.get("author_id"):
+            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
         current_user = decode_token(access_token.split(" ")[1])
         now = datetime.now(timezone.utc)
 
@@ -154,12 +160,13 @@ async def create_post(request: Request):
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
             raise HTTPException(status_code=401, detail="Unauthorized")
 
+        post_info["created_at"] = datetime.now(ZoneInfo("Asia/Seoul"))
         post_id = insert_post(mongo_collection, post_info)
         return {"post_id": str(post_id), "status": "ok"}
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create post: {e}")
 
 
 @app.get("/posts/{post_id}")

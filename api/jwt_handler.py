@@ -8,12 +8,13 @@ SECRET_KEY = os.getenv("SECRET_KEY", "no secret key provided")
 
 
 class Token(BaseModel):
-    access_token: str
+    token: str
     token_type: str
 
 
 class TokenData(BaseModel):
     user_id: str
+    email: str|None = None
     exp: datetime
 
 
@@ -29,7 +30,14 @@ def create_token(data: dict, expires_in: int, token_type):
 def decode_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        decoded_token = TokenData(user_id=payload.get("id"), exp=payload.get("exp"))
+
+        id = payload.get("id")
+        email = payload.get("email")
+        expiration = payload.get("exp")
+        if id is None or expiration is None:
+            raise JWTError("Could not validate credentials")
+
+        decoded_token = TokenData(user_id=id, email=email, exp=expiration)
         return decoded_token
     except JWTError as e:
         raise JWTError(f"Could not validate credentials: {e}")

@@ -26,7 +26,9 @@ def select_post(collection: MongoClient, post_id: int):
     return post
 
 
-def select_all_posts(collection: MongoClient, page: int, page_size: int, author_id: str):
+def select_all_posts(
+        collection: MongoClient, page: int, page_size: int, author_id: str
+):
     filter = {} if not author_id else {"author_id": author_id}
     all_posts = collection.find(filter, {"_id": 0})\
         .sort("_id", -1).skip((page - 1) * page_size).limit(page_size)

@@ -64,7 +64,7 @@ def signup(user_info: dict):
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to signup: {e}")
 
 
 @app.post("/users/login")
@@ -91,7 +91,7 @@ def login(id: str, password: str, response: Response):
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to login: {e}")
 
 
 @app.post("/users/refresh")
@@ -116,7 +116,7 @@ def token_refresh(refresh_token: str = Cookie(None)):
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to refresh token: {e}")
 
 
 @app.post("/users/logout")
@@ -128,7 +128,7 @@ def logout(response: Response):
     except HTTPException as e:
         raise e
     except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to logout: {e}")
 
 
 # posts
@@ -183,7 +183,7 @@ def get_post(post_id: int):
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get post: {e}")
 
 @app.get("/posts")
 def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):
@@ -191,12 +191,12 @@ def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):
         posts = select_all_posts(mongo_collection, page, page_size, author_id)
         return posts
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get posts: {e}")
 
 
 @app.put("/posts/{post_id}")
-def to_update_post(post_id: int, post: dict, request: Request):
-    if not post_id or not post:
+def to_update_post(post_id: int, post_info: dict, request: Request):
+    if not post_id or not post_info:
         raise HTTPException(status_code=422, detail="Unprocessable Entity")
 
     try:
@@ -204,29 +204,36 @@ def to_update_post(post_id: int, post: dict, request: Request):
         if access_token is None:
             raise HTTPException(status_code=401, detail="Unauthorized")
 
+        if not post_info.get("title") \
+            or not post_info.get("content") \
+            or not post_info.get("author_id"):
+            raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
         current_user = decode_token(access_token.split(" ")[1])
         now = datetime.now(timezone.utc)
         post_info = select_post(mongo_collection, post_id)
 
+        if not post_info:
+            raise HTTPException(status_code=404, detail="Not Found: Post not found")
         if not current_user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         if current_user.user_id != post_info["author_id"]:
             raise HTTPException(status_code=403, detail="Forbidden")
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
             raise HTTPException(status_code=401, detail="Unauthorized")
-        if not post_info:
-            raise HTTPException(status_code=404, detail="Not Found: Post not found")
 
-        update_post(mongo_collection, post_id, post)
+        update_post(mongo_collection, post_id, post_info)
         return {"status": "ok"}
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update post: {e}")
 
 
 @app.delete("/posts/{post_id}")
 def to_delete_post(post_id: int, request: Request):
+    if not post_id:
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
     try:
         access_token = request.headers.get("Authorization")
         if access_token is None:
@@ -236,14 +243,14 @@ def to_delete_post(post_id: int, request: Request):
         now = datetime.now(timezone.utc)
         post_info = select_post(mongo_collection, post_id)
 
+        if not post_info:
+            raise HTTPException(status_code=404, detail="Not Found: Post not found")
         if not current_user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         if current_user.user_id != post_info["author_id"]:
             raise HTTPException(status_code=403, detail="Forbidden")
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
             raise HTTPException(status_code=401, detail="Unauthorized")
-        if not post_info:
-            raise HTTPException(status_code=404, detail="Not Found: Post not found")
 
         delete_post(mongo_collection, post_id)
         return {"status": "ok"}

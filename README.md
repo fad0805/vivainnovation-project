@@ -19,6 +19,7 @@ Check the health of the API running
     "status": "ok"
 }
 ```
+---
 ### Users
 #### POST /users/signup
 ##### Description
@@ -74,6 +75,28 @@ Logout the user
 ###### Success
 ```json
 {
+    "status": "ok"
+}
+```
+---
+### Posts
+#### POST /posts
+##### Description
+Create a new post
+##### Request
+```json
+{
+    "title": string,
+    "content": string,
+    "author_id": string,
+    "created_at": string,
+}
+```
+##### Response
+###### Success
+```json
+{
+    "post_id": string,
     "status": "ok"
 }
 ```

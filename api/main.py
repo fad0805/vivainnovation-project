@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Cookie, Request, Response
+from fastapi import FastAPI, Cookie, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from jwt_handler import create_token, decode_token
@@ -31,9 +31,9 @@ mongo_collection = mongo_init()
 def authenticate_user(engine, id: str, password: str):
     user = select_user(engine, id)
     if not user:
-        return False
+        raise HTTPException(status_code=404, detail="Not Found: User not found")
     if not verify_password(password, user.salt, user.password_hash):
-        return False
+        raise HTTPException(status_code=401, detail="Unauthorized")
     return user
 
 
@@ -45,40 +45,59 @@ def health_check():
 # users
 @app.post("/users/signup")
 def signup(user_info: dict):
+    if not user_info:
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     id, email, password, created_at = user_info.values()
 
     salt = generate_password_hash()
     password_hash = hash_password(password, salt)
 
     try:
+        user = select_user(mysql_engine, id)
+        if user:
+            raise HTTPException(status_code=409, detail="Conflict: User already exists")
+
         insert_user(mysql_engine, id, email, salt, password_hash, created_at)
         return {"status": "ok"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to create user: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 @app.post("/users/login")
 def login(id: str, password: str, response: Response):
+    if not id or not password:
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     try:
         user = authenticate_user(mysql_engine, id, password)
         if not user:
-            raise Exception(f"Failed to login: Invalid credentials")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         access_payload = {"id": user.id, "email": user.email}
         access_token = create_token(access_payload, ACCESS_TOKEN_EXPIRE, "bearer")
         refresh_payload = {"id": user.id}
         refresh_token = create_token(refresh_payload, REFRESH_TOKEN_EXPIRE, "refresh")
 
-        response.set_cookie(key="refresh_token", value=refresh_token.token, httponly=True)
+        response.set_cookie(
+            key="refresh_token", value=refresh_token.token, httponly=True
+        )
 
         update_user(mysql_engine, id, refresh_token.token)
         return access_token
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to login: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 @app.post("/users/refresh")
 def token_refresh(refresh_token: str = Cookie(None)):
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="Bad Request")
+
     try:
         current_user = decode_token(refresh_token)
         if not current_user:
@@ -86,15 +105,17 @@ def token_refresh(refresh_token: str = Cookie(None)):
 
         user = select_user(mysql_engine, current_user.user_id)
         if not user:
-            raise Exception(f"Failed to refresh token: User not found")
+            raise HTTPException(status_code=404, detail="Not Found: User not found")
         if user.refresh_token != refresh_token:
-            raise Exception(f"Failed to refresh token: Invalid refresh token")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         payload = {"id": user.id, "email": user.email}
         new_access_token = create_token(payload, ACCESS_TOKEN_EXPIRE, "bearer")
         return new_access_token
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to refresh token: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 @app.post("/users/logout")
@@ -103,46 +124,59 @@ def logout(response: Response):
         update_user(mysql_engine, id, None)
         response.delete_cookie(key="refresh_token")
         return {"status": "ok"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to logout: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 # posts
 @app.post("/posts")
 async def create_post(request: Request):
+    if not request.body:
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     try:
         access_token = request.headers.get("Authorization")
         post_info = await request.json()
         if access_token is None:
-            raise Exception(f"Failed to create post: Unauthorized")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         current_user = decode_token(access_token.split(" ")[1])
         now = datetime.now(timezone.utc)
 
         if not current_user:
-            raise Exception(f"Failed to create post: Invalid user")
+            raise HTTPException(status_code=401, detail="Unauthorized")
         if current_user.user_id != post_info["author_id"]:
-            raise Exception(f"Failed to create post: Invalid user")
+            raise HTTPException(status_code=401, detail="Unauthorized")
         if not select_user(mysql_engine, current_user.user_id):
-            raise Exception(f"Failed to create post: User not found")
+            raise HTTPException(status_code=401, detail="Unauthorized")
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
-            raise Exception(f"Failed to create post: Token expired")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         post_id = insert_post(mongo_collection, post_info)
         return {"post_id": str(post_id), "status": "ok"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to create post: {e}")
-
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 @app.get("/posts/{post_id}")
 def get_post(post_id: int):
+    if not post_id:
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     try:
         post = select_post(mongo_collection, post_id)
-        return post
-    except Exception as e:
-        raise Exception(f"Failed to get post: {e}")
+        if not post:
+            raise HTTPException(status_code=404, detail="Not Found: Post not found")
 
+        return post
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 @app.get("/posts")
 def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):
@@ -150,31 +184,38 @@ def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):
         posts = select_all_posts(mongo_collection, page, page_size, author_id)
         return posts
     except Exception as e:
-        raise Exception(f"Failed to get posts: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 @app.put("/posts/{post_id}")
 def to_update_post(post_id: int, post: dict, request: Request):
+    if not post_id or not post:
+        raise HTTPException(status_code=422, detail="Unprocessable Entity")
+
     try:
         access_token = request.headers.get("Authorization")
         if access_token is None:
-            raise Exception(f"Failed to delete post: Unauthorized")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         current_user = decode_token(access_token.split(" ")[1])
         now = datetime.now(timezone.utc)
         post_info = select_post(mongo_collection, post_id)
 
         if not current_user:
-            raise Exception(f"Failed to delete post: Invalid user")
+            raise HTTPException(status_code=401, detail="Unauthorized")
         if current_user.user_id != post_info["author_id"]:
-            raise Exception(f"Failed to delete post: Invalid user")
+            raise HTTPException(status_code=403, detail="Forbidden")
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
-            raise Exception(f"Failed to create post: Token expired")
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        if not post_info:
+            raise HTTPException(status_code=404, detail="Not Found: Post not found")
 
         update_post(mongo_collection, post_id, post)
         return {"status": "ok"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")
 
 
 @app.delete("/posts/{post_id}")
@@ -182,20 +223,24 @@ def to_delete_post(post_id: int, request: Request):
     try:
         access_token = request.headers.get("Authorization")
         if access_token is None:
-            raise Exception(f"Failed to delete post: Unauthorized")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         current_user = decode_token(access_token.split(" ")[1])
         now = datetime.now(timezone.utc)
         post_info = select_post(mongo_collection, post_id)
 
         if not current_user:
-            raise Exception(f"Failed to delete post: Invalid user")
+            raise HTTPException(status_code=401, detail="Unauthorized")
         if current_user.user_id != post_info["author_id"]:
-            raise Exception(f"Failed to delete post: Invalid user")
+            raise HTTPException(status_code=403, detail="Forbidden")
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
-            raise Exception(f"Failed to create post: Token expired")
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        if not post_info:
+            raise HTTPException(status_code=404, detail="Not Found: Post not found")
 
         delete_post(mongo_collection, post_id)
         return {"status": "ok"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise Exception(f"Failed to delete post: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {e}")

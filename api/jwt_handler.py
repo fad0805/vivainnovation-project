@@ -8,7 +8,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "no secret key provided")
 
 
 class Token(BaseModel):
-    token: str
+    access_token: str
     token_type: str
 
 

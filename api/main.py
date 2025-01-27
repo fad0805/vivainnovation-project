@@ -59,6 +59,7 @@ def signup(user_info: dict):
         if user:
             raise HTTPException(status_code=409, detail="Conflict: User already exists")
 
+        created_at = datetime.now(ZoneInfo("Asia/Seoul"))
         insert_user(mysql_engine, id, email, salt, password_hash, created_at)
         return {"status": "ok"}
     except HTTPException as e:

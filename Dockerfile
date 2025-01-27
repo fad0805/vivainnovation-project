@@ -1,5 +1,4 @@
 FROM python:3.11-slim
-WORKDIR /api
 
 # Install dependencies
 COPY requirements.txt ./

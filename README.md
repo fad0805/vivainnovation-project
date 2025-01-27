@@ -13,6 +13,9 @@
 docker compose run --build --rm web pytest api_test.py
 ```
 ---
+## DB Migration
+Automatically run when the container is started
+---
 
 # API Documentation
 ## Endpoints

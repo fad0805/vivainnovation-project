@@ -179,7 +179,12 @@ def get_post(post_id: int):
         if not post:
             raise HTTPException(status_code=404, detail="Not Found: Post not found")
 
-        return post
+        return {
+            "title": post["title"],
+            "content": post["content"],
+            "author_id": post["author_id"],
+            "created_at": post["created_at"],
+        }
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -211,18 +216,21 @@ def to_update_post(post_id: int, post_info: dict, request: Request):
 
         current_user = decode_token(access_token.split(" ")[1])
         now = datetime.now(timezone.utc)
-        post_info = select_post(mongo_collection, post_id)
+        original_post = select_post(mongo_collection, post_id)
 
-        if not post_info:
+        if not original_post:
             raise HTTPException(status_code=404, detail="Not Found: Post not found")
         if not current_user:
             raise HTTPException(status_code=401, detail="Unauthorized")
-        if current_user.user_id != post_info["author_id"]:
+        if current_user.user_id != original_post["author_id"]:
             raise HTTPException(status_code=403, detail="Forbidden")
         if current_user.exp.replace(tzinfo=timezone.utc) < now:
             raise HTTPException(status_code=401, detail="Unauthorized")
 
-        update_post(mongo_collection, post_id, post_info)
+        updated_post = update_post(mongo_collection, post_id, post_info)
+        if updated_post.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Bad Request: No changes")
+
         return {"status": "ok"}
     except HTTPException as e:
         raise e

@@ -5,10 +5,10 @@
 - Docker Compose
 ### Steps
 1. Clone the repository
-2. Run `docker compose up`
+2. Run `docker compose up --build`
 
 ---
-## API testing
+## API test
 ```bash
 docker compose run --build --rm web pytest api_test.py
 ```

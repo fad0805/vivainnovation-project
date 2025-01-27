@@ -139,3 +139,20 @@ Update a post by id
     "author_id": string,
 }
 ```
+##### Response
+###### Success
+```json
+{
+    "status": "ok"
+}
+```
+#### DELETE /posts/{post_id}
+##### Description
+Delete a post by id
+##### Response
+###### Success
+```json
+{
+    "status": "ok"
+}
+```

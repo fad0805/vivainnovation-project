@@ -7,6 +7,13 @@
 1. Clone the repository
 2. Run `docker compose up`
 
+---
+## API testing
+```bash
+docker compose run --build --rm web pytest api_test.py
+```
+---
+
 # API Documentation
 ## Endpoints
 ### Health

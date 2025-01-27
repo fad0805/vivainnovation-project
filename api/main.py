@@ -1,13 +1,16 @@
 from datetime import datetime, timezone
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Cookie, Request, Response, HTTPException
+from fastapi import FastAPI, Cookie, Form, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from jwt_handler import create_token, decode_token
 from hashing import generate_password_hash, hash_password, verify_password
-from post import mongo_init, insert_post, select_post, select_all_posts, update_post, delete_post
-from user import mysql_init, insert_user, select_user, update_user
+from post import mongo_init, insert_post, select_post, select_all_posts, \
+    update_post, delete_post
+from user import mysql_init, insert_user, select_user, select_user_by_email, \
+    update_user
 
 origins = [
     "http://localhost",
@@ -49,15 +52,20 @@ def signup(user_info: dict):
     if not user_info:
         raise HTTPException(status_code=422, detail="Unprocessable Entity")
 
-    id, email, password, created_at = user_info.values()
+    id, email, password = user_info.values()
 
     salt = generate_password_hash()
     password_hash = hash_password(password, salt)
 
     try:
         user = select_user(mysql_engine, id)
+        email_user = select_user_by_email(mysql_engine, email)
         if user:
             raise HTTPException(status_code=409, detail="Conflict: User already exists")
+        if email_user:
+            raise HTTPException(
+                status_code=409, detail="Conflict: Email already exists"
+            )
 
         created_at = datetime.now(ZoneInfo("Asia/Seoul"))
         insert_user(mysql_engine, id, email, salt, password_hash, created_at)
@@ -69,9 +77,15 @@ def signup(user_info: dict):
 
 
 @app.post("/users/login")
-def login(id: str, password: str, response: Response):
+def login(
+    id: Annotated[str, Form()], password: Annotated[str, Form()],
+    response: Response
+):
     if not id or not password:
         raise HTTPException(status_code=422, detail="Unprocessable Entity")
+    if type(id) != str or type(password) != str:
+        id = str(id)
+        password = str(password)
 
     try:
         user = authenticate_user(mysql_engine, id, password)
@@ -97,13 +111,14 @@ def login(id: str, password: str, response: Response):
 
 @app.post("/users/refresh")
 def token_refresh(refresh_token: str = Cookie(None)):
+    print(refresh_token)
     if not refresh_token:
         raise HTTPException(status_code=400, detail="Bad Request")
 
     try:
         current_user = decode_token(refresh_token)
         if not current_user:
-            raise Exception(f"Failed to refresh token: Invalid user")
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
         user = select_user(mysql_engine, current_user.user_id)
         if not user:
@@ -190,6 +205,7 @@ def get_post(post_id: int):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get post: {e}")
+
 
 @app.get("/posts")
 def get_posts(page: int = 1, page_size: int = 10, author_id: str = ''):

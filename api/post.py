@@ -17,7 +17,10 @@ def insert_post(collection: MongoClient, post: dict):
     post["id"] = 1
     if last_post:
         post["id"] = last_post["id"] + 1
-    post_id = collection.insert_one(post).inserted_id
+    result = collection.insert_one(post)
+    post_id = ''
+    if result.acknowledged:
+        post_id = post["id"]
     return post_id
 
 

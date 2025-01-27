@@ -54,6 +54,13 @@ def select_user(engine, id):
         result = connection.execute(stmt)
         return result.fetchone()
 
+
+def select_user_by_email(engine, email):
+    stmt = select(User).where(User.email == email)
+    with engine.connect() as connection:
+        result = connection.execute(stmt)
+        return result.fetchone()
+
 def update_user(engine, id, refresh_token):
     stmt = update(User).where(User.id == id).values(refresh_token=refresh_token)
     with engine.connect() as connection:

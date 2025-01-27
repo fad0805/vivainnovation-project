@@ -1,9 +1,12 @@
 cryptography
 fastapi
+httpx
 jose
 pydantic
 pymongo
 pymysql
+pytest
+python-multipart
 python-jose
 sqlalchemy
 sqlalchemy-utils

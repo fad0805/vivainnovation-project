@@ -89,7 +89,6 @@ Create a new post
     "title": string,
     "content": string,
     "author_id": string,
-    "created_at": string,
 }
 ```
 ##### Response
@@ -98,5 +97,45 @@ Create a new post
 {
     "post_id": string,
     "status": "ok"
+}
+```
+#### GET /posts/{post_id}
+##### Description
+Get a post by id
+##### Response
+###### Success
+```json
+{
+    "title": string,
+    "content": string,
+    "author_id": string,
+    "created_at": string,
+}
+```
+#### GET /posts
+##### Description
+Get all posts
+##### Response
+###### Success
+```json
+[
+    {
+        "title": string,
+        "content": string,
+        "author_id": string,
+        "created_at": string,
+        "id": int,
+    }
+]
+```
+#### PUT /posts/{post_id}
+##### Description
+Update a post by id
+##### Request
+```json
+{
+    "title": string,
+    "content": string,
+    "author_id": string,
 }
 ```
